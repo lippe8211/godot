@@ -34,6 +34,7 @@
 #include "core/string/print_string.h"
 
 #include <cstdlib> // For malloc/free
+#include <cstdio> // For vsnprintf
 
 OsLogLogger::OsLogLogger(const char *p_subsystem) {
 	const char *subsystem = p_subsystem;

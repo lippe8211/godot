@@ -1,5 +1,5 @@
 /**************************************************************************/
-/*  godot_view_renderer.mm                                                */
+/*  godot_view_tvos.mm                                                     */
 /**************************************************************************/
 /*                         This file is part of:                          */
 /*                             GODOT ENGINE                               */
@@ -28,94 +28,69 @@
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
 /**************************************************************************/
 
-#import "godot_view_renderer.h"
+#import "godot_view_tvos.h"
 
-#import "display_server_apple_embedded.h"
-#import "os_apple_embedded.h"
+#import "display_layer_tvos.h"
 
 #include "core/config/project_settings.h"
-#include "core/os/keyboard.h"
-#include "main/main.h"
-#include "servers/audio/audio_server.h"
+#include "core/error/error_macros.h"
 
-#import <AudioToolbox/AudioServices.h>
-#if !defined(TVOS_ENABLED)
-#import <CoreMotion/CoreMotion.h>
-#endif
-#import <GameController/GameController.h>
-#import <QuartzCore/QuartzCore.h>
-#import <UIKit/UIKit.h>
+@interface GDTViewTVOS ()
 
-@interface GDTViewRenderer ()
-
-@property(assign, nonatomic) BOOL hasFinishedProjectDataSetup;
-@property(assign, nonatomic) BOOL hasStartedMain;
-@property(assign, nonatomic) BOOL hasFinishedSetup;
+GODOT_CLANG_WARNING_PUSH_AND_IGNORE("-Wobjc-property-synthesis")
+@property(strong, nonatomic) CALayer<GDTDisplayLayer> *renderingLayer;
+GODOT_CLANG_WARNING_POP
 
 @end
 
-@implementation GDTViewRenderer
+@implementation GDTViewTVOS
 
-- (BOOL)setupView:(UIView *)view {
-	if (self.hasFinishedSetup) {
-		return NO;
+- (CALayer<GDTDisplayLayer> *)initializeRenderingForDriver:(NSString *)driverName {
+	if (self.renderingLayer) {
+		return self.renderingLayer;
 	}
 
-	if (!OS::get_singleton()) {
-		exit(0);
-	}
+	CALayer<GDTDisplayLayer> *layer;
 
-	if (!self.hasFinishedProjectDataSetup) {
-		[self setupProjectData];
-		return YES;
-	}
-
-	if (!self.hasStartedMain) {
-		self.hasStartedMain = YES;
-		OS_AppleEmbedded::get_singleton()->start();
-		return YES;
-	}
-
-	self.hasFinishedSetup = YES;
-
-	return NO;
-}
-
-- (void)setupProjectData {
-	self.hasFinishedProjectDataSetup = YES;
-
-	Main::setup2();
-
-	// this might be necessary before here
-	NSDictionary *dict = [[NSBundle mainBundle] infoDictionary];
-	for (NSString *key in dict) {
-		NSObject *value = [dict objectForKey:key];
-		String ukey = String::utf8([key UTF8String]);
-
-		// we need a NSObject to Variant conversor
-
-		if ([value isKindOfClass:[NSString class]]) {
-			NSString *str = (NSString *)value;
-			String uval = String::utf8([str UTF8String]);
-
-			ProjectSettings::get_singleton()->set("Info.plist/" + ukey, uval);
-
-		} else if ([value isKindOfClass:[NSNumber class]]) {
-			NSNumber *n = (NSNumber *)value;
-			double dval = [n doubleValue];
-
-			ProjectSettings::get_singleton()->set("Info.plist/" + ukey, dval);
+	if ([driverName isEqualToString:@"vulkan"] || [driverName isEqualToString:@"metal"]) {
+#if defined(TARGET_OS_SIMULATOR) && TARGET_OS_SIMULATOR
+		if (@available(tvOS 13, *)) {
+			layer = [GDTMetalLayer layer];
+		} else {
+			return nil;
 		}
-		// do stuff
+#else
+		layer = [GDTMetalLayer layer];
+#endif
+#if defined(GLES3_ENABLED)
+	} else if ([driverName isEqualToString:@"opengl3"]) {
+		GODOT_CLANG_WARNING_PUSH_AND_IGNORE("-Wdeprecated-declarations") // OpenGL is deprecated in tvOS 12.0.
+		layer = [GDTOpenGLLayer layer];
+		GODOT_CLANG_WARNING_POP
+#endif
+	} else {
+		return nil;
 	}
-}
 
-- (void)renderOnView:(UIView *)view {
-	if (!OS_AppleEmbedded::get_singleton()) {
-		return;
-	}
+	layer.frame = self.bounds;
+	layer.contentsScale = self.contentScaleFactor;
 
-	OS_AppleEmbedded::get_singleton()->iterate();
+	[self.layer addSublayer:layer];
+	self.renderingLayer = layer;
+
+	[layer initializeDisplayLayer];
+
+	return self.renderingLayer;
 }
 
 @end
+
+GDTView *GDTViewCreate() {
+	GDTViewTVOS *view = [GDTViewTVOS new];
+	if (GLOBAL_GET("display/window/ios/allow_high_refresh_rate")) {
+		view.preferredFrameRate = 120;
+	} else {
+		view.preferredFrameRate = 60;
+	}
+	return view;
+}

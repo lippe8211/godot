@@ -1,5 +1,5 @@
 /**************************************************************************/
-/*  godot_view_renderer.mm                                                */
+/*  main_tvos.mm                                                           */
 /**************************************************************************/
 /*                         This file is part of:                          */
 /*                             GODOT ENGINE                               */
@@ -28,94 +28,52 @@
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
 /**************************************************************************/
 
-#import "godot_view_renderer.h"
+#import "os_tvos.h"
 
-#import "display_server_apple_embedded.h"
-#import "os_apple_embedded.h"
-
-#include "core/config/project_settings.h"
-#include "core/os/keyboard.h"
+#include "core/profiling/profiling.h"
+#import "drivers/apple_embedded/godot_app_delegate.h"
+#import "drivers/apple_embedded/main_utilities.h"
 #include "main/main.h"
-#include "servers/audio/audio_server.h"
 
-#import <AudioToolbox/AudioServices.h>
-#if !defined(TVOS_ENABLED)
-#import <CoreMotion/CoreMotion.h>
-#endif
-#import <GameController/GameController.h>
-#import <QuartzCore/QuartzCore.h>
 #import <UIKit/UIKit.h>
+#include <cstdio>
 
-@interface GDTViewRenderer ()
+static OS_TVOS *os = nullptr;
 
-@property(assign, nonatomic) BOOL hasFinishedProjectDataSetup;
-@property(assign, nonatomic) BOOL hasStartedMain;
-@property(assign, nonatomic) BOOL hasFinishedSetup;
+int apple_embedded_main(int argc, char **argv) {
+#if defined(VULKAN_ENABLED)
+	//MoltenVK - enable full component swizzling support
+	setenv("MVK_CONFIG_FULL_IMAGE_VIEW_SWIZZLE", "1", 1);
+#endif
 
-@end
+	change_to_launch_dir(argv);
 
-@implementation GDTViewRenderer
+	os = new OS_TVOS();
 
-- (BOOL)setupView:(UIView *)view {
-	if (self.hasFinishedSetup) {
-		return NO;
-	}
+	// We must override main when testing is enabled
+	TEST_MAIN_OVERRIDE
 
-	if (!OS::get_singleton()) {
-		exit(0);
-	}
+	char *fargv[64];
+	argc = process_args(argc, argv, fargv);
 
-	if (!self.hasFinishedProjectDataSetup) {
-		[self setupProjectData];
-		return YES;
-	}
+	godot_init_profiler();
 
-	if (!self.hasStartedMain) {
-		self.hasStartedMain = YES;
-		OS_AppleEmbedded::get_singleton()->start();
-		return YES;
-	}
+	Error err = Main::setup(fargv[0], argc - 1, &fargv[1], false);
 
-	self.hasFinishedSetup = YES;
-
-	return NO;
-}
-
-- (void)setupProjectData {
-	self.hasFinishedProjectDataSetup = YES;
-
-	Main::setup2();
-
-	// this might be necessary before here
-	NSDictionary *dict = [[NSBundle mainBundle] infoDictionary];
-	for (NSString *key in dict) {
-		NSObject *value = [dict objectForKey:key];
-		String ukey = String::utf8([key UTF8String]);
-
-		// we need a NSObject to Variant conversor
-
-		if ([value isKindOfClass:[NSString class]]) {
-			NSString *str = (NSString *)value;
-			String uval = String::utf8([str UTF8String]);
-
-			ProjectSettings::get_singleton()->set("Info.plist/" + ukey, uval);
-
-		} else if ([value isKindOfClass:[NSNumber class]]) {
-			NSNumber *n = (NSNumber *)value;
-			double dval = [n doubleValue];
-
-			ProjectSettings::get_singleton()->set("Info.plist/" + ukey, dval);
+	if (err != OK) {
+		if (err == ERR_HELP) { // Returned by --help and --version, so success.
+			return EXIT_SUCCESS;
 		}
-		// do stuff
-	}
-}
-
-- (void)renderOnView:(UIView *)view {
-	if (!OS_AppleEmbedded::get_singleton()) {
-		return;
+		return EXIT_FAILURE;
 	}
 
-	OS_AppleEmbedded::get_singleton()->iterate();
+	os->initialize_modules();
+
+	return os->get_exit_code();
 }
 
-@end
+void apple_embedded_finish() {
+	Main::cleanup();
+	godot_cleanup_profiler();
+	delete os;
+}

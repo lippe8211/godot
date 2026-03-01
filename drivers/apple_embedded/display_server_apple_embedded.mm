@@ -664,10 +664,14 @@ void DisplayServerAppleEmbedded::screen_set_orientation(DisplayServer::ScreenOri
 	ERR_FAIL_INDEX(p_screen, screen_count);
 
 	screen_orientation = p_orientation;
+#if defined(TVOS_ENABLED)
+	if (@available(tvOS 16.0, *)) {
+#else
 	if (@available(iOS 16.0, *)) {
+#endif
 		[GDTAppDelegateService.viewController setNeedsUpdateOfSupportedInterfaceOrientations];
 	}
-#if !defined(VISIONOS_ENABLED)
+#if !defined(VISIONOS_ENABLED) && !defined(TVOS_ENABLED)
 	else {
 		[UIViewController attemptRotationToDeviceOrientation];
 	}
@@ -771,13 +775,22 @@ bool DisplayServerAppleEmbedded::has_hardware_keyboard() const {
 }
 
 void DisplayServerAppleEmbedded::clipboard_set(const String &p_text) {
+#if defined(TVOS_ENABLED)
+	// UIPasteboard is unavailable on tvOS.
+	(void)p_text;
+#else
 	[UIPasteboard generalPasteboard].string = [NSString stringWithUTF8String:p_text.utf8().get_data()];
+#endif
 }
 
 String DisplayServerAppleEmbedded::clipboard_get() const {
+#if defined(TVOS_ENABLED)
+	return String();
+#else
 	NSString *text = [UIPasteboard generalPasteboard].string;
 
 	return String::utf8([text UTF8String]);
+#endif
 }
 
 void DisplayServerAppleEmbedded::screen_set_keep_on(bool p_enable) {

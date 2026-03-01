@@ -43,7 +43,7 @@
 #include "core/os/main_loop.h"
 #include "core/profiling/profiling.h"
 #import "drivers/apple/os_log_logger.h"
-#ifdef SDL_ENABLED
+#if defined(SDL_ENABLED) && !defined(TVOS_ENABLED)
 #include "drivers/sdl/joypad_sdl.h"
 #endif
 #include "main/main.h"
@@ -170,7 +170,7 @@ void OS_AppleEmbedded::initialize() {
 }
 
 void OS_AppleEmbedded::initialize_joypads() {
-#ifdef SDL_ENABLED
+#if defined(SDL_ENABLED) && !defined(TVOS_ENABLED)
 	joypad_sdl = memnew(JoypadSDL());
 	if (joypad_sdl->initialize() != OK) {
 		ERR_PRINT("Couldn't initialize SDL joypad input driver.");
@@ -186,7 +186,7 @@ void OS_AppleEmbedded::initialize_modules() {
 }
 
 void OS_AppleEmbedded::deinitialize_modules() {
-#ifdef SDL_ENABLED
+#if defined(SDL_ENABLED) && !defined(TVOS_ENABLED)
 	if (joypad_sdl) {
 		memdelete(joypad_sdl);
 	}
@@ -226,7 +226,7 @@ bool OS_AppleEmbedded::iterate() {
 		DisplayServer::get_singleton()->process_events();
 	}
 
-#ifdef SDL_ENABLED
+#if defined(SDL_ENABLED) && !defined(TVOS_ENABLED)
 	if (joypad_sdl) {
 		joypad_sdl->process_events();
 	}
@@ -831,7 +831,11 @@ Rect2 OS_AppleEmbedded::calculate_boot_screen_rect(const Size2 &p_window_size, c
 
 bool OS_AppleEmbedded::request_permission(const String &p_name) {
 	if (p_name == "appleembedded.permission.AUDIO_RECORD") {
+#if defined(TVOS_ENABLED)
+		if (@available(tvOS 17.0, *)) {
+#else
 		if (@available(iOS 17.0, *)) {
+#endif
 			AVAudioApplicationRecordPermission permission = [AVAudioApplication sharedInstance].recordPermission;
 			if (permission == AVAudioApplicationRecordPermissionGranted) {
 				// Permission already granted, you can start recording.
@@ -853,7 +857,11 @@ bool OS_AppleEmbedded::request_permission(const String &p_name) {
 Vector<String> OS_AppleEmbedded::get_granted_permissions() const {
 	Vector<String> ret;
 
+#if defined(TVOS_ENABLED)
+	if (@available(tvOS 17.0, *)) {
+#else
 	if (@available(iOS 17.0, *)) {
+#endif
 		if ([AVAudioApplication sharedInstance].recordPermission == AVAudioApplicationRecordPermissionGranted) {
 			ret.push_back("appleembedded.permission.AUDIO_RECORD");
 		}

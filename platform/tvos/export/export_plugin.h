@@ -1,5 +1,5 @@
 /**************************************************************************/
-/*  godot_view_renderer.mm                                                */
+/*  export_plugin.h                                                       */
 /**************************************************************************/
 /*                         This file is part of:                          */
 /*                             GODOT ENGINE                               */
@@ -28,94 +28,41 @@
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
 /**************************************************************************/
 
-#import "godot_view_renderer.h"
+#pragma once
 
-#import "display_server_apple_embedded.h"
-#import "os_apple_embedded.h"
+#include "editor/export/editor_export_platform_apple_embedded.h"
 
-#include "core/config/project_settings.h"
-#include "core/os/keyboard.h"
-#include "main/main.h"
-#include "servers/audio/audio_server.h"
+class EditorExportPlatformTVOS : public EditorExportPlatformAppleEmbedded {
+	GDCLASS(EditorExportPlatformTVOS, EditorExportPlatformAppleEmbedded);
 
-#import <AudioToolbox/AudioServices.h>
-#if !defined(TVOS_ENABLED)
-#import <CoreMotion/CoreMotion.h>
-#endif
-#import <GameController/GameController.h>
-#import <QuartzCore/QuartzCore.h>
-#import <UIKit/UIKit.h>
+	static Vector<String> device_types;
 
-@interface GDTViewRenderer ()
+	virtual String get_platform_name() const override { return "tvos"; }
+	virtual String get_sdk_name() const override { return "appletvos"; }
+	virtual const Vector<String> get_device_types() const override { return device_types; }
 
-@property(assign, nonatomic) BOOL hasFinishedProjectDataSetup;
-@property(assign, nonatomic) BOOL hasStartedMain;
-@property(assign, nonatomic) BOOL hasFinishedSetup;
+	virtual String get_minimum_deployment_target() const override { return "14.0"; }
 
-@end
+	virtual Vector<IconInfo> get_icon_infos() const override;
 
-@implementation GDTViewRenderer
+	virtual void get_export_options(List<ExportOption> *r_options) const override;
+	virtual bool has_valid_export_configuration(const Ref<EditorExportPreset> &p_preset, String &r_error, bool &r_missing_templates, bool p_debug = false) const override;
 
-- (BOOL)setupView:(UIView *)view {
-	if (self.hasFinishedSetup) {
-		return NO;
+	virtual Error _export_loading_screen_file(const Ref<EditorExportPreset> &p_preset, const String &p_dest_dir) override;
+	virtual Error _export_icons(const Ref<EditorExportPreset> &p_preset, const String &p_iconset_dir) override;
+	virtual HashMap<String, Variant> get_custom_project_settings(const Ref<EditorExportPreset> &p_preset) const override;
+
+	virtual String _process_config_file_line(const Ref<EditorExportPreset> &p_preset, const String &p_line, const AppleEmbeddedConfigData &p_config, bool p_debug, const CodeSigningDetails &p_code_signing) override;
+
+public:
+	virtual String get_name() const override { return "tvOS"; }
+	virtual String get_os_name() const override { return "tvOS"; }
+
+	virtual void get_platform_features(List<String> *r_features) const override {
+		EditorExportPlatformAppleEmbedded::get_platform_features(r_features);
+		r_features->push_back("tvos");
 	}
 
-	if (!OS::get_singleton()) {
-		exit(0);
-	}
-
-	if (!self.hasFinishedProjectDataSetup) {
-		[self setupProjectData];
-		return YES;
-	}
-
-	if (!self.hasStartedMain) {
-		self.hasStartedMain = YES;
-		OS_AppleEmbedded::get_singleton()->start();
-		return YES;
-	}
-
-	self.hasFinishedSetup = YES;
-
-	return NO;
-}
-
-- (void)setupProjectData {
-	self.hasFinishedProjectDataSetup = YES;
-
-	Main::setup2();
-
-	// this might be necessary before here
-	NSDictionary *dict = [[NSBundle mainBundle] infoDictionary];
-	for (NSString *key in dict) {
-		NSObject *value = [dict objectForKey:key];
-		String ukey = String::utf8([key UTF8String]);
-
-		// we need a NSObject to Variant conversor
-
-		if ([value isKindOfClass:[NSString class]]) {
-			NSString *str = (NSString *)value;
-			String uval = String::utf8([str UTF8String]);
-
-			ProjectSettings::get_singleton()->set("Info.plist/" + ukey, uval);
-
-		} else if ([value isKindOfClass:[NSNumber class]]) {
-			NSNumber *n = (NSNumber *)value;
-			double dval = [n doubleValue];
-
-			ProjectSettings::get_singleton()->set("Info.plist/" + ukey, dval);
-		}
-		// do stuff
-	}
-}
-
-- (void)renderOnView:(UIView *)view {
-	if (!OS_AppleEmbedded::get_singleton()) {
-		return;
-	}
-
-	OS_AppleEmbedded::get_singleton()->iterate();
-}
-
-@end
+	virtual void initialize() override;
+	~EditorExportPlatformTVOS();
+};

@@ -257,6 +257,12 @@ def setup_swift_builder(env, apple_platform, sdk_path, current_path, bridging_he
     elif apple_platform == "iossimulator":
         target_suffix = "ios14.0-simulator"  # iOS 14.0 needed for SwiftUI lifecycle
 
+    elif apple_platform in ("tvos", "appletvos"):
+        target_suffix = "tvos14.0"  # tvOS 14.0 needed for SwiftUI lifecycle
+
+    elif apple_platform in ("tvossimulator", "appletvsimulator"):
+        target_suffix = "tvos14.0-simulator"  # tvOS 14.0 needed for SwiftUI lifecycle
+
     elif apple_platform == "visionos":
         target_suffix = "xros26.0"
 

@@ -1,5 +1,5 @@
 /**************************************************************************/
-/*  godot_view_renderer.mm                                                */
+/*  os_tvos.h                                                              */
 /**************************************************************************/
 /*                         This file is part of:                          */
 /*                             GODOT ENGINE                               */
@@ -28,94 +28,20 @@
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
 /**************************************************************************/
 
-#import "godot_view_renderer.h"
+#pragma once
 
-#import "display_server_apple_embedded.h"
-#import "os_apple_embedded.h"
+#ifdef TVOS_ENABLED
 
-#include "core/config/project_settings.h"
-#include "core/os/keyboard.h"
-#include "main/main.h"
-#include "servers/audio/audio_server.h"
+#import "drivers/apple_embedded/os_apple_embedded.h"
 
-#import <AudioToolbox/AudioServices.h>
-#if !defined(TVOS_ENABLED)
-#import <CoreMotion/CoreMotion.h>
-#endif
-#import <GameController/GameController.h>
-#import <QuartzCore/QuartzCore.h>
-#import <UIKit/UIKit.h>
+class OS_TVOS : public OS_AppleEmbedded {
+public:
+	static OS_TVOS *get_singleton();
 
-@interface GDTViewRenderer ()
+	OS_TVOS();
+	~OS_TVOS();
 
-@property(assign, nonatomic) BOOL hasFinishedProjectDataSetup;
-@property(assign, nonatomic) BOOL hasStartedMain;
-@property(assign, nonatomic) BOOL hasFinishedSetup;
+	virtual String get_name() const override;
+};
 
-@end
-
-@implementation GDTViewRenderer
-
-- (BOOL)setupView:(UIView *)view {
-	if (self.hasFinishedSetup) {
-		return NO;
-	}
-
-	if (!OS::get_singleton()) {
-		exit(0);
-	}
-
-	if (!self.hasFinishedProjectDataSetup) {
-		[self setupProjectData];
-		return YES;
-	}
-
-	if (!self.hasStartedMain) {
-		self.hasStartedMain = YES;
-		OS_AppleEmbedded::get_singleton()->start();
-		return YES;
-	}
-
-	self.hasFinishedSetup = YES;
-
-	return NO;
-}
-
-- (void)setupProjectData {
-	self.hasFinishedProjectDataSetup = YES;
-
-	Main::setup2();
-
-	// this might be necessary before here
-	NSDictionary *dict = [[NSBundle mainBundle] infoDictionary];
-	for (NSString *key in dict) {
-		NSObject *value = [dict objectForKey:key];
-		String ukey = String::utf8([key UTF8String]);
-
-		// we need a NSObject to Variant conversor
-
-		if ([value isKindOfClass:[NSString class]]) {
-			NSString *str = (NSString *)value;
-			String uval = String::utf8([str UTF8String]);
-
-			ProjectSettings::get_singleton()->set("Info.plist/" + ukey, uval);
-
-		} else if ([value isKindOfClass:[NSNumber class]]) {
-			NSNumber *n = (NSNumber *)value;
-			double dval = [n doubleValue];
-
-			ProjectSettings::get_singleton()->set("Info.plist/" + ukey, dval);
-		}
-		// do stuff
-	}
-}
-
-- (void)renderOnView:(UIView *)view {
-	if (!OS_AppleEmbedded::get_singleton()) {
-		return;
-	}
-
-	OS_AppleEmbedded::get_singleton()->iterate();
-}
-
-@end
+#endif // TVOS_ENABLED

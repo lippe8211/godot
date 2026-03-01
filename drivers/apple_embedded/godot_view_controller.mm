@@ -166,7 +166,9 @@
 	[self observeKeyboard];
 	[self displayLoadingOverlay];
 
+#if !defined(TVOS_ENABLED)
 	[self setNeedsUpdateOfScreenEdgesDeferringSystemGestures];
+#endif
 }
 
 - (void)viewDidAppear:(BOOL)animated {
@@ -180,6 +182,9 @@
 }
 
 - (void)observeKeyboard {
+#if defined(TVOS_ENABLED)
+	return;
+#else
 	print_verbose("Setting up keyboard input view.");
 	self.keyboardView = [GDTKeyboardInputView new];
 	[self.view addSubview:self.keyboardView];
@@ -195,6 +200,7 @@
 			   selector:@selector(keyboardHidden:)
 				   name:UIKeyboardDidHideNotification
 				 object:nil];
+#endif
 }
 
 - (void)displayLoadingOverlay {
@@ -341,6 +347,9 @@
 // MARK: Keyboard
 
 - (void)keyboardOnScreen:(NSNotification *)notification {
+#if defined(TVOS_ENABLED)
+	(void)notification;
+#else
 	NSDictionary *info = notification.userInfo;
 	NSValue *value = info[UIKeyboardFrameEndUserInfoKey];
 
@@ -350,12 +359,17 @@
 	if (DisplayServerAppleEmbedded::get_singleton()) {
 		DisplayServerAppleEmbedded::get_singleton()->virtual_keyboard_set_height(keyboardFrame.size.height);
 	}
+#endif
 }
 
 - (void)keyboardHidden:(NSNotification *)notification {
+#if defined(TVOS_ENABLED)
+	(void)notification;
+#else
 	if (DisplayServerAppleEmbedded::get_singleton()) {
 		DisplayServerAppleEmbedded::get_singleton()->virtual_keyboard_set_height(0);
 	}
+#endif
 }
 
 @end

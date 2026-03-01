@@ -111,8 +111,10 @@ static GDTViewController *mainViewController = nil;
 		category = AVAudioSessionCategoryMultiRoute;
 	} else if (sessionCategorySetting == SESSION_CATEGORY_PLAY_AND_RECORD) {
 		category = AVAudioSessionCategoryPlayAndRecord;
+#if !defined(TVOS_ENABLED)
 		options |= AVAudioSessionCategoryOptionDefaultToSpeaker;
 		options |= AVAudioSessionCategoryOptionAllowBluetoothA2DP;
+#endif
 		options |= AVAudioSessionCategoryOptionAllowAirPlay;
 	} else if (sessionCategorySetting == SESSION_CATEGORY_PLAYBACK) {
 		category = AVAudioSessionCategoryPlayback;

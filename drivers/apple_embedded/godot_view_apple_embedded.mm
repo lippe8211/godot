@@ -38,10 +38,14 @@
 #include "core/os/keyboard.h"
 #include "core/string/ustring.h"
 
+#if !defined(TVOS_ENABLED)
 #import <CoreMotion/CoreMotion.h>
+#endif
 
 static const int max_touches = 32;
+#if !defined(TVOS_ENABLED)
 static const float earth_gravity = 9.80665;
+#endif
 
 @interface GDTView () {
 	UITouch *godot_touches[max_touches];
@@ -58,7 +62,9 @@ static const float earth_gravity = 9.80665;
 
 @property(strong, nonatomic) CALayer<GDTDisplayLayer> *renderingLayer;
 
+#if !defined(TVOS_ENABLED)
 @property(strong, nonatomic) CMMotionManager *motionManager;
+#endif
 
 @property(assign, nonatomic) BOOL delegateDidFinishSetUp;
 
@@ -102,10 +108,12 @@ static const float earth_gravity = 9.80665;
 		self.renderingLayer = nil;
 	}
 
+	#if !defined(TVOS_ENABLED)
 	if (self.motionManager) {
 		[self.motionManager stopDeviceMotionUpdates];
 		self.motionManager = nil;
 	}
+	#endif
 
 	if (self.displayLink) {
 		[self.displayLink invalidate];
@@ -126,15 +134,22 @@ static const float earth_gravity = 9.80665;
 	self.contentScaleFactor = [UIScreen mainScreen].scale;
 #endif
 
+	#if defined(TVOS_ENABLED)
+	if (@available(tvOS 17.0, *)) {
+	#else
 	if (@available(iOS 17.0, *)) {
+	#endif
 		[self registerForTraitChanges:@[ [UITraitUserInterfaceStyle class] ] withTarget:self action:@selector(traitCollectionDidChangeWithView:previousTraitCollection:)];
 	}
 
 	[self initTouches];
 
+	#if !defined(TVOS_ENABLED)
 	self.multipleTouchEnabled = YES;
+	#endif
 
-	// Configure and start accelerometer
+	#if !defined(TVOS_ENABLED)
+	// Configure and start accelerometer.
 	if (!self.motionManager) {
 		self.motionManager = [[CMMotionManager alloc] init];
 		if (self.motionManager.deviceMotionAvailable) {
@@ -144,6 +159,7 @@ static const float earth_gravity = 9.80665;
 			self.motionManager = nil;
 		}
 	}
+	#endif
 }
 
 - (void)system_theme_changed {
@@ -381,6 +397,9 @@ static const float earth_gravity = 9.80665;
 // MARK: Motion
 
 - (void)handleMotion {
+#if defined(TVOS_ENABLED)
+	return;
+#else
 	if (!self.motionManager) {
 		return;
 	}
@@ -448,8 +467,9 @@ static const float earth_gravity = 9.80665;
 			DisplayServerAppleEmbedded::get_singleton()->update_accelerometer(Vector3(acceleration.x + gravity.x, acceleration.y + gravity.y, acceleration.z + gravity.z));
 			DisplayServerAppleEmbedded::get_singleton()->update_magnetometer(Vector3(magnetic.x, magnetic.y, magnetic.z));
 			DisplayServerAppleEmbedded::get_singleton()->update_gyroscope(Vector3(rotation.x, rotation.y, rotation.z));
-		} break;
+			} break;
 	}
+#endif
 }
 
 @end
