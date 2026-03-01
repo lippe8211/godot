@@ -30,6 +30,7 @@
 
 #include "editor_bottom_panel.h"
 
+#include "core/object/callable_method_pointer.h"
 #include "editor/debugger/editor_debugger_node.h"
 #include "editor/docks/editor_dock.h"
 #include "editor/docks/editor_dock_manager.h"
@@ -130,7 +131,7 @@ void EditorBottomPanel::dock_focused(EditorDock *p_dock, bool p_was_visible) {
 }
 
 DockTabContainer::TabStyle EditorBottomPanel::get_tab_style() const {
-	return (TabStyle)EDITOR_GET("interface/editor/bottom_dock_tab_style").operator int();
+	return (TabStyle)EDITOR_GET("interface/editor/docks/bottom_dock_tab_style").operator int();
 }
 
 bool EditorBottomPanel::can_switch_dock() const {
